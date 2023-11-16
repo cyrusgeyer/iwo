@@ -1,0 +1,14 @@
+mode: MULTIRUN
+launcher:
+  additional_parameters: {"ntasks":1}
+  timeout_min: 1440
+  cpus_per_task: 1
+  gpus_per_node: null
+  tasks_per_node: 1
+  mem_per_gpu: null
+  mem_per_cpu: 2000
+
+job:
+  chdir: True
+
+

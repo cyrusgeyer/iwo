@@ -1,0 +1,6 @@
+name: ??? # either synthetic, dsprites, cars3d or smallnorb
+representation_path: /path/to/representation.npy # ignored when name: synthetic
+factor_path: /path/to/factor.npy # ignored when name: synthetic
+fraction: 1.0
+num_workers: 0
+split: [0.7,0.15] # train, val, test – test is inferred from 1 - train - val

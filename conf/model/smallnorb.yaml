@@ -1,0 +1,17 @@
+mode: independent
+per_factor_training: [True, True, True, True, True]
+default:
+  first_dim: 10
+  num_hidden_layers: 2
+  hidden_dim: 256
+  batch_norm: True
+  init_w: kaiming_uniform_custom #,xavier_normal, xavier_uniform, kaiming_normal, eye
+  init_layers: kaiming_uniform #,xavier_normal, xavier_uniform, kaiming_normal, eye
+  nonlinearity: leaky_relu # relu, leaky_relu
+  nonlinearity_param: 0.01
+  first_layer_batch_norm: True
+  first_layer_nonlinearity: True 
+factor_0:
+factor_1:
+factor_2:
+factor_3:

@@ -1,0 +1,11 @@
+name: synthetic
+N: 10000
+K: 5
+L: 10
+noise_sigma: 0.001
+data_sigma: 1.0
+rank : 2
+orth_proj : True
+function : "quadratic" # "noisy", "permuted", "linear", "quadratic" or "trig"
+shuffle: False
+num_workers: 0

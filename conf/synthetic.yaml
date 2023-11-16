@@ -1,0 +1,19 @@
+defaults:
+  - training: default
+  - representation: synthetic
+  - model: synthetic
+
+hydra:
+  run:
+    dir: "output/${representation.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
+  job:
+    chdir: True
+
+training:
+  wandb_project_name: $IWO_${representation.name}_${now:%Y-%m-%d}_${now:%H-%M-%S}
+  num_epochs: 50
+  lr: 0.005
+  debug: False
+  optimizer: Adam
+  log_iwo: True
+  accelerator: cpu

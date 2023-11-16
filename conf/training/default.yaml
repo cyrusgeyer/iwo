@@ -1,0 +1,10 @@
+wandb_project_name: ???
+num_epochs: 100
+debug: False
+batch_size: 128
+num_workers: 3
+lr: 0.0008
+optimizer: Adam
+accelerator: gpu
+es_patience: 4
+log_iwo: True
