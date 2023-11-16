@@ -5,8 +5,8 @@ defaults:
 
 representation: 
   name: smallnorb
-  exp_num: 8700
-  model: ann_vae
+  exp_num: 7200
+  model: beta_vae
   exp_path:  path/to/disentanglement_lib-master/results/${representation.name}/${representation.model}/${representation.exp_num}
   representation_path: ${representation.exp_path}/postprocessed/mean/codes.npy
   factor_path: ${representation.exp_path}/postprocessed/mean/factors.npy
@@ -22,7 +22,6 @@ hydra:
 training:
   wandb_project_name: ${representation.name}_${representation.model}_debug_${now:%Y-%m-%d}_${now:%H-%M-%S}
   num_epochs: 50
-  lr: 0.0005
   debug: True
   optimizer: Adam
   log_iwo: True
