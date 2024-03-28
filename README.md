@@ -48,7 +48,7 @@ This repository supports experiments on a Slurm-type cluster using the Submitit 
 ## What to expect
 ### Synthetic experiments
 
-![joint](https://github.com/cyrusgeyer/iwo/assets/18593696/70c53de6-4029-4fc5-876b-31fd1a3553f2)
+![joint](./assets/loss_plot.png?raw=true)
 
 In the above figure we depict the loss of neural network heads at different projection steps for a single run of synthetic experiment 3 of our paper ($L = 10$, $K = 5$ and $R_j = 5$). $\mathcal{L}_{l}$ for $l \geq 6$ are omitted , as they are almost zero (similar to $\mathcal{L}_5$). 
 Each generative factor is analysed using GCA, which means for each generative factor we train an LNN spine with 9 matrices $W_9 \in \mathbb{R}^{9 \times 10}$ ... $W_1 \in \mathbb{R}^{1 \times 2}$ and 10 NN-heads acting on the projections. 
