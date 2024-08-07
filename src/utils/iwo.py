@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 
-def log_to_base(tensor, base):
+def log_to_base(tensor: torch.Tensor, base: float) -> torch.Tensor:
     """
     Compute the logarithm of all elements in the input tensor to the specified base.
 
@@ -11,7 +11,8 @@ def log_to_base(tensor, base):
     base (float): The logarithmic base to use.
 
     Returns:
-    torch.Tensor: A tensor where each element is the logarithm to the specified base of the corresponding element in the input tensor.
+    torch.Tensor: A tensor where each element is the logarithm to the
+    specified base of the corresponding element in the input tensor.
     """
     # Convert the base to a tensor and ensure it is the same dtype as the input tensor
     base_tensor = torch.tensor([base], dtype=tensor.dtype, device=tensor.device)
@@ -24,66 +25,170 @@ def log_to_base(tensor, base):
     return log_x / log_base
 
 
-def complete_orthonormal_basis(V):
+def complete_orthonormal_basis(Q: torch.Tensor) -> torch.Tensor:
     """
     Complete the orthonormal basis given k-1 orthonormal vectors of k dimensions.
 
     Parameters:
-    V (Tensor): A tensor of shape (k-1, k) containing k-1 orthonormal vectors.
+    Q (torch.Tensor): A tensor of shape (k-1, k) containing k-1 orthonormal vectors.
 
     Returns:
     Tensor: The k-th vector to complete the orthonormal basis.
     """
-    k = V.size(1)  # get the dimension of the vectors
+    # get the dimension of the vectors
+    k = Q.size(1)
+
     # Create a random vector w
-    w = torch.randn(k).to(V.device)
-    # Ensure w is not in the span of vectors in V by checking if the orthogonalization of w results in a zero vector
+    w = torch.randn(k).to(Q.device).to(Q.dtype)
+
+    # Ensure w is not in the span of vectors in Q by checking
+    # if the orthogonalization of w results in a zero vector
     while torch.allclose(
-        complete_orthonormal_basis_helper(V, w), torch.zeros(k).to(V.device), atol=1e-6
+        complete_orthonormal_basis_helper(Q, w),
+        torch.zeros(k).to(Q.device).to(Q.dtype),
+        atol=1e-6,
     ):
         w = torch.randn(k)  # pick a new random vector w and try again
 
-    vk = complete_orthonormal_basis_helper(V, w)
-    return (vk / vk.norm()).unsqueeze(0)  # normalize the vector vk before returning it
+    qk = complete_orthonormal_basis_helper(Q, w)
+    return (qk / qk.norm()).unsqueeze(0)  # normalize the vector qk before returning it
 
 
-def complete_orthonormal_basis_helper(V, w):
+def complete_orthonormal_basis_helper(Q: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     """
-    Helper function to orthogonalize w with respect to the vectors in V.
+    Helper function to orthogonalize w with respect to the vectors in Q.
     """
-    for i in range(V.size(0)):
-        vi = V[i]
-        projection = (w.dot(vi) / vi.dot(vi)) * vi
+    for i in range(Q.size(0)):
+        qi = Q[i]
+        projection = (w.dot(qi) / qi.dot(qi)) * qi
         w = w - projection
     return w
 
 
-def get_basis(m_list):
-    num_m = len(m_list)
-    W = [propagate_forward(m_list[:-1], m_list[-1])]
-    for i in reversed(range(num_m - 1)):
-        Q = get_Q(m_list[i + 1])
-        orth_row = complete_orthonormal_basis(Q)
-        b_new = torch.matmul(orth_row, m_list[i])
-        W.append(propagate_forward(m_list[:i], b_new))
-    complete_Q = get_Q(torch.concat(W))
-    return complete_Q
+def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
+    """generate basis matrix B of dimensions L x L where L is the latent space dimension.
+    B is orthonormal, the columns are the basis vectors ordered from most important to least important.
 
+    Args:
+        W_list (list): learned matrices W_L
+        new_dtype (_type_, optional): . Defaults to torch.float64.
 
-def propagate_forward(w_list, x):
-    for w in reversed(w_list):
-        x = torch.matmul(x, w)
-    return x
-
-
-def calculate_iwo(Qs, scores, baselines, keep_small_scores=True, num_dim=10):
+    Returns:
+        torch.Tensor: basis matrix B
     """
-    Compute the IWO and IWR scores for a given set of Qs, scores and baselines.
+    old_dtype = W_list[0].dtype
+    device = W_list[0].device
+
+    if old_dtype != new_dtype:
+        W_list = [m.to(new_dtype) for m in W_list]
+
+    prod_W = torch.eye(W_list[0].shape[1]).to(device).to(new_dtype)
+    B = []
+
+    # get bL to b2
+    for W in W_list:
+        Q = get_Q(W)
+        q = complete_orthonormal_basis(Q)
+        q = torch.matmul(prod_W, q.t())
+        B.append(q)
+        if W.shape[0] != 1:
+            prod_W = torch.linalg.lstsq(W.t(), prod_W.t()).solution.t()
+
+    # get b1
+    B.append(torch.matmul(prod_W, W.t()))
+
+    # get i.o.o. basis
+    B = torch.concat(list(reversed(B)), axis=1)
+
+    B = B.to(old_dtype)
+    B = B / B.pow(2).sum(0).sqrt()
+
+    return B
+
+
+def get_iwo(importance_list: list, Bs: list) -> list:
+    """Calculate IWO.
+
+    Args:
+        importance_list (list): list of floats holding the relative importance of the basis vectors in B
+        Bs (list): _description_
+
+    Returns:
+        list: _description_
+    """
+
+    num_factors = len(Bs)
+    iwo_list = []
+
+    for i in range(num_factors):
+        for j in range(i + 1, len(Bs)):
+            iwo = (
+                1
+                - (
+                    importance_list[j].unsqueeze(1) ** (1 / 2)
+                    * (torch.matmul(Bs[j], Bs[i].transpose(1, 0)) ** 2)
+                    * importance_list[i].unsqueeze(0) ** (1 / 2)
+                ).sum()
+            )
+            iwo_list.append(iwo)
+    return iwo_list
+
+
+def get_importance(baseline: float, scores: list, num_dim=None) -> list:
+    """Computes the importance as deduced from the loss differences between the NN-heads.
+
+    Args:
+        baseline (float): The score which corresponds to random guessing for this task.
+        scores (list): The scores that were allocated to the the basis vectors (loss differences between NN-heads)
+        keep_small_scores (bool, optional): Whether to keep very small scores or neglect them. Defaults to True.
+        num_dim (int, optional): The number of dimensions in the latent space. If not specified, it's assumed to be the length of the list scores.
+
+    Returns:
+        list: importance as deduced from the loss differences between the NN-heads
+    """
+
+    if num_dim is None:
+        num_dim = len(scores) + 1
+
+    device = scores.device
+
+    min_score = baseline
+    diff_scores = []
+    for j in reversed(range(len(scores))):
+        diff = min_score - scores[j]
+        if diff > 0:
+            diff_scores.append(diff)
+            min_score = scores[j]
+        else:
+            diff_scores.append(0)
+
+    diff_scores = torch.Tensor(diff_scores).to(device)
+
+    if diff_scores.sum() > 0:
+        importance = diff_scores / baseline
+
+        if importance.sum().item() < 1:
+            # distribute the remaining importance equally
+            importance = importance + (1 - importance.sum()) / len(importance)
+        importance = importance.to(device)
+    else:
+        importance = torch.ones_like(diff_scores) / len(diff_scores)
+    iwr = (
+        (1 - (-importance * log_to_base(importance + 0.0001, num_dim)).sum(0))
+        .sum()
+        .item()
+    )
+
+    return importance, iwr
+
+
+def calculate_iwo(Bs: list, all_scores: list, baselines: list, num_dim=None):
+    """
+    Compute the IWO and IWR scores for a given set of Bs, scores and baselines.
     Parameters:
-    Qs (list): A list of Q matrices spanning a basis (one for each factor)
-    scores (list): A nested list of scores associated to the basis vectors in each Q (acquired either through training, validation or testing).
+    Bs (list): A list of matrices, each spanning an i.o.o. basis (one for each factor)
+    all_scores (list): A nested list of scores associated to the basis vectors in each Q (acquired either through training, validation or testing).
     baselines (list): A list of baselines associated to the factors. (e.g. 5/6 for 6 classes of equal frequency)
-    keep_small_scores (bool): Whether to keep small scores or not. Default is True.
     num_dim (int): The number of dimensions in the latent space. For simple cases this equal to the number of basis vectors in each Q.
 
     returns:
@@ -93,73 +198,24 @@ def calculate_iwo(Qs, scores, baselines, keep_small_scores=True, num_dim=10):
     """
 
     iwr_list = []
-    abs_min_score = []  # minimum score for each factor
-    importance = []  # basis vector importance
+    importance_list = []  # basis vector importance
 
-    for i in range(len(scores)):
-        min_score = baselines[i]
-        score = []
-        ll = baselines[i]
-        for j in reversed(range(len(scores[i]))):
-            s = scores[i][j]
-            _score = ll - s
-            if keep_small_scores:
-                score.append(max(_score, 0))
-            else:
-                score.append(_score if (min_score > s and _score > 0.1) else 0)
-            min_score = min(min_score, s)
-            ll = min_score
-        score = torch.Tensor(score).to(scores[i].device)
-        if score.sum() > 0:
-            if keep_small_scores:
-                abs_score = score / baselines[i]
-                abs_score = abs_score + (1 - abs_score.sum()) / len(
-                    abs_score
-                )  # distribute the remaining importance equally
-                importance.append(abs_score.to(score.device))
-            else:
-                importance.append(score / score.sum())
-        else:
-            importance.append(torch.ones_like(score) * 1 / len(score))
-        iwr_list.append(
-            (
-                1
-                - (-importance[-1] * log_to_base(importance[-1] + 0.0001, num_dim)).sum(
-                    0
-                )
-            )
-            .sum()
-            .item()
-        )  # compute IWR
-        abs_min_score.append(scores[i].min())
+    for i, scores in enumerate(all_scores):
+        importance, iwr = get_importance(baselines[i], scores, num_dim)
+        importance_list.append(importance)
+        iwr_list.append(iwr)
 
-    # Compute relative informativeness about the factos for weighing of IWR later on.
-    scr = (torch.tensor(baselines) - torch.tensor(abs_min_score)) / torch.tensor(
-        baselines
-    )
+    iwo_list = get_iwo(importance_list, Bs)
 
-    iwo_list = []
+    mean_iwr = np.mean(iwr_list)
+    mean_iwo = np.mean(iwo_list)
 
-    for i in range(len(Qs)):
-        for j in range(i + 1, len(Qs)):
-            iwo = (
-                importance[j].unsqueeze(1) ** (1 / 2)
-                * (torch.matmul(Qs[j], Qs[i].transpose(1, 0)) ** 2)
-                * importance[i].unsqueeze(0) ** (1 / 2)
-            ).sum()
-            iwo_list.append(-iwo.item())
-
-    mw_iwo = np.mean(iwo_list)
-    # mean iwo
-    mw_iwr = np.mean(iwr_list)
-    # mean iwr
-
-    return iwo_list, iwr_list, mw_iwo, mw_iwr, importance
+    return iwo_list, iwr_list, mean_iwo, mean_iwr, importance_list
 
 
-def get_Qs(m_list):
+def get_Qs(W_list):
     Q_list = []
-    for W in m_list:
+    for W in W_list:
         Q_list.append(get_Q(W))
     return Q_list
 
