@@ -87,21 +87,21 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
 
     # get bL to b2
     for W in W_list:
-        Q = get_Q(W)
-        q = complete_orthonormal_basis(Q)
-        q = torch.matmul(prod_W, q.t())
-        B.append(q)
+        Q, _ = torch.linalg.qr(W.t(), mode="complete")
+        q = Q[-1:, :]
+        b = prod_W @ q.t()
+        B.append(b / torch.linalg.norm(b))
         if W.shape[0] != 1:
             prod_W = torch.linalg.lstsq(W.t(), prod_W.t()).solution.t()
 
     # get b1
-    B.append(torch.matmul(prod_W, W.t()))
+    b = prod_W @ W.t()
+    B.append(b / torch.linalg.norm(b))
 
     # get i.o.o. basis
     B = torch.concat(list(reversed(B)), axis=1)
 
     B = B.to(old_dtype)
-    B = B / B.pow(2).sum(0).sqrt()
 
     return B
 
