@@ -82,27 +82,24 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
     if old_dtype != new_dtype:
         W_list = [m.to(new_dtype) for m in W_list]
 
-    prod_W = torch.eye(W_list[0].shape[1]).to(device).to(new_dtype)
-    B = []
+    W_prod = torch.eye(W_list[0].shape[1], device=device, dtype=new_dtype)
 
-    # get bL to b2
-    for W in W_list:
-        Q, _ = torch.linalg.qr(W.t(), mode="complete")
-        q = Q[-1:, :]
-        b = prod_W @ q.t()
-        B.append(b / torch.linalg.norm(b))
-        if W.shape[0] != 1:
-            prod_W = torch.linalg.lstsq(W.t(), prod_W.t()).solution.t()
-
-    # get b1
-    b = prod_W @ W.t()
-    B.append(b / torch.linalg.norm(b))
-
-    # get i.o.o. basis
-    B = torch.concat(list(reversed(B)), axis=1)
-
+    for i, W in enumerate(W_list):
+        W_prod = W @ W_prod
+        A = W_prod.t() @ W_prod
+        L, Q = torch.linalg.eigh(A)
+        if i == 0:
+            b_list = [Q[:, 0:1]]
+        else:
+            T = torch.concat([Q[:, i + 1 :]] + b_list, axis=1)
+            Qr, _ = torch.linalg.qr(T, mode="complete")
+            b_list.append(Qr[:, -1:])
+    T = torch.concat(b_list, axis=1)
+    Qr, _ = torch.linalg.qr(T, mode="complete")
+    b_list.append(Qr[:, -1:])
+    B_flipped = torch.concat(b_list, axis=1)
+    B = torch.flip(B_flipped, dims=[1])
     B = B.to(old_dtype)
-
     return B
 
 
