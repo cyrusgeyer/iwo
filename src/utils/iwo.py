@@ -86,12 +86,11 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
 
     for i, W in enumerate(W_list):
         W_prod = W @ W_prod
-        A = W_prod.t() @ W_prod
-        L, Q = torch.linalg.eigh(A)
         if i == 0:
-            b_list = [Q[:, 0:1]]
+            Qr, _ = torch.linalg.qr(W_prod.t(), mode="complete")
+            b_list = [Qr[:, -1:]]
         else:
-            T = torch.concat([Q[:, i + 1 :]] + b_list, axis=1)
+            T = torch.concat([W_prod.t()] + b_list, axis=1)
             Qr, _ = torch.linalg.qr(T, mode="complete")
             b_list.append(Qr[:, -1:])
     T = torch.concat(b_list, axis=1)
