@@ -1,5 +1,7 @@
-output
-multirun
+.venv*
+wandb*
+src_seg*
+*multirun*
 .vscode
 output*
 
