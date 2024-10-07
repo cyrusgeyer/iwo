@@ -1,7 +1,7 @@
-# Beyond Disentanglement: On the Orthogonality of Learned Representations
+# Measuring Orthogonality in Representations of Generative Models
 
 ## Introduction
-This repository hosts the code and resources for the research paper "Beyond Disentanglement: On the Orthogonality of Learned Representations". It's designed to be used in conjunction with the [disentanglement_lib](https://github.com/google-research/disentanglement_lib) repository, but also includes synthetic experiments that can be run independently.
+This repository hosts the code and resources for the research paper "Measuring Orthogonality in Representations of Generative Models". It's designed to be used in conjunction with the [disentanglement_lib](https://github.com/google-research/disentanglement_lib) repository, but also includes synthetic experiments that can be run independently.
 
 ## Features
 - Integration with `disentanglement_lib` for comprehensive disentanglement studies.
@@ -44,7 +44,7 @@ To use this repository with `disentanglement_lib`, you need to first extract the
 A supporting script follows soon. 
 
 #### Cluster Deployment
-This repository supports experiments on a Slurm-type cluster using the Submitit plugin for Hydra. Configuration details can be found in `conf/hydra/submitit_gpu`. 
+This repository supports experiments on a Slurm-type cluster using the Submitit plugin for Hydra. Configuration details can be found in `conf/hydra/submitit_gpu`.
 
 ## Contributing
 Contributions to improve the repository or the research are welcome. Please read `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests. [coming soon]

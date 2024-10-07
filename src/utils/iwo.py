@@ -25,6 +25,46 @@ def log_to_base(tensor: torch.Tensor, base: float) -> torch.Tensor:
     return log_x / log_base
 
 
+def complete_orthonormal_basis(Q: torch.Tensor) -> torch.Tensor:
+    """
+    Complete the orthonormal basis given k-1 orthonormal vectors of k dimensions.
+
+    Parameters:
+    Q (torch.Tensor): A tensor of shape (k-1, k) containing k-1 orthonormal vectors.
+
+    Returns:
+    Tensor: The k-th vector to complete the orthonormal basis.
+    """
+    # get the dimension of the vectors
+    k = Q.size(1)
+
+    # Create a random vector w
+    w = torch.randn(k).to(Q.device).to(Q.dtype)
+
+    # Ensure w is not in the span of vectors in Q by checking
+    # if the orthogonalization of w results in a zero vector
+    while torch.allclose(
+        complete_orthonormal_basis_helper(Q, w),
+        torch.zeros(k).to(Q.device).to(Q.dtype),
+        atol=1e-6,
+    ):
+        w = torch.randn(k)  # pick a new random vector w and try again
+
+    qk = complete_orthonormal_basis_helper(Q, w)
+    return (qk / qk.norm()).unsqueeze(0)  # normalize the vector qk before returning it
+
+
+def complete_orthonormal_basis_helper(Q: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
+    """
+    Helper function to orthogonalize w with respect to the vectors in Q.
+    """
+    for i in range(Q.size(0)):
+        qi = Q[i]
+        projection = (w.dot(qi) / qi.dot(qi)) * qi
+        w = w - projection
+    return w
+
+
 def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
     """generate basis matrix B of dimensions L x L where L is the latent space dimension.
     B is orthonormal, the columns are the basis vectors ordered from most important to least important.
