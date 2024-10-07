@@ -82,7 +82,11 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
     if old_dtype != new_dtype:
         W_list = [m.to(new_dtype) for m in W_list]
 
-    W_prod = torch.eye(W_list[0].shape[1], device=device, dtype=new_dtype)
+    if W_list[0].shape[0] != W_list[0].shape[1]:
+        W_prod = torch.eye(W_list[0].shape[1], device=device, dtype=new_dtype)
+    else:
+        W_prod = W_list[0]
+        W_list.pop(0)
 
     for i, W in enumerate(W_list):
         W_prod = W @ W_prod
