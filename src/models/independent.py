@@ -34,7 +34,10 @@ class IWOModel(nn.Module):
     def forward(self, x):
         pred_factors = []
         for k, model in enumerate(self.model):
-            if self.per_factor_training[k]:
+            if (
+                str(self.per_factor_training) == str(k)
+                or str(self.per_factor_training) == "all"
+            ):
                 pred_factors.append(model(x))
             else:
                 pred_factors.append(None)
@@ -151,9 +154,9 @@ class ReductionNet(nn.Module):
     def get_w(self):
         w_list = []
         if self.first_layer_not_param:
-            w_list.append(self.first_w.detach())
+            w_list.append(self.first_w.detach().clone())
         for w in self.w_list_params:
-            w_list.append(w.detach())
+            w_list.append(w.detach().clone())
         return w_list
 
 
