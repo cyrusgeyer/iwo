@@ -42,7 +42,9 @@ def train_iwo_pipeline(cfg, train_dataset, val_dataset, test_dataset):
     )
 
     wandb_logger = WandbLogger(
-        project=f"IWO_{cfg.training.wandb_project_name}", config=cfg_dict
+        project=f"IWO_{cfg.training.wandb_project_name}",
+        config=cfg_dict,
+        offline=cfg.training.wandb_offline,
     )
     trainer = L.Trainer(
         logger=wandb_logger,
@@ -57,12 +59,14 @@ def train_iwo_pipeline(cfg, train_dataset, val_dataset, test_dataset):
     trainer.test(litiwo, dataloaders[2])
     iwo_test_out = litiwo.iwo_test_out
     # Construct out as such for backwards compatibility
+
     out = [
         {
             "scores_train": [score.cpu() for score in litiwo.scores["train"][k]],
             "scores_val": [score.cpu() for score in litiwo.scores["val"][k]],
             "scores": [score.cpu() for score in litiwo.scores["test"][k]],
-            "Qs": [Q.cpu() for Q in litiwo.Qs[k]],
+            "Ws": [[W.cpu() for W in Ws] for Ws in litiwo.Ws[k]],
+            "Bs": [B.cpu() for B in litiwo.Bs[k]],
             "baseline": litiwo.baselines[k],
         }
         for k in range(len(factor_sizes))

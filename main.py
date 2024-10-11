@@ -16,10 +16,12 @@ def main(cfg: DictConfig) -> None:
     OmegaConf.resolve(cfg)
     if cfg.representation.name == "synthetic":
         from src.utils.representation_synthetic import make_datasets
-    elif cfg.representation.name in ["dsprites", "cars3d", "smallnorb"]:
+    elif cfg.representation.name in ["dsprites", "cars3d", "smallnorb", "shapes3d"]:
         from src.utils.representation_learned import make_datasets
     else:
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"Representation {cfg.representation.name} is not implemented."
+        )
 
     train_dataset, val_dataset, test_dataset = make_datasets(cfg.representation)
 
@@ -34,6 +36,8 @@ def main(cfg: DictConfig) -> None:
         print(f"Mean IWO: {mean_iwo}")
         print(f"Mean IWR: {mean_rnk}")
         # We return min of validation mean_scores for hyperparameter optimization.
+        with open("out.pkl", "wb") as file:
+            pickle.dump(all_outs, file)
         return min(mean_scores["val"])
 
     # Write results into the file structure provided by disentanglement_lib
@@ -46,13 +50,16 @@ def main(cfg: DictConfig) -> None:
     json_path = os.path.join(json_dir, "evaluation_results.json")
 
     with open(json_path, "w") as f:
-        json.dump({"iwo": mean_iwo, "mean_rank": mean_rnk}, f, indent=4)
+        json.dump({"iwo": float(mean_iwo), "mean_rank": float(mean_rnk)}, f, indent=4)
 
     with open(os.path.join(out_dir, "out.pkl"), "wb") as file:
         pickle.dump(all_outs, file)
 
     with open(os.path.join(out_dir, "iwo_dict.pkl"), "wb") as file:
         pickle.dump(iwo_test_out, file)
+
+    with open("out.pkl", "wb") as file:
+        pickle.dump(all_outs, file)
 
 
 if __name__ == "__main__":

@@ -123,20 +123,31 @@ class LocatelloDataset(torch.utils.data.Dataset):
                 "y-position",
             ]
             self._factor_discrete = [True, False, True, False, False]
-            self._factor_discrete_more = [True, True, False, False, False]
 
         elif dataset_name == "cars3d":
             self._factor_sizes = [4, 24, 183]
             self._factor_names = ["elevation", "azimuth", "object"]
-            # self._factor_discrete = [False, True, False, False, False, False, False]
             self._factor_discrete = [False, False, True]
-            self._factor_discrete_more = [False, False, True]
 
         elif dataset_name == "smallnorb":
             self._factor_sizes = [5, 9, 18, 6]
             self._factor_names = ["category", "elevation", "azimuth", "lighting"]
-            # self._factor_discrete = [False, True, False, False, False, False, False]
             self._factor_discrete = [True, False, False, False]
+
+        elif dataset_name == "shapes3d":
+            # color is given in hue values, so it has an order. Although, with only 10 points,
+            # probably it is better to simply define them as categorical variables
+            # since the difference between hue color is to bi
+            self._factor_sizes = [10, 10, 10, 8, 4, 15]
+            self._factor_names = [
+                "floor color",
+                "wall color",
+                "object color",
+                "object size",
+                "object type",
+                "azimuth",
+            ]
+            self._factor_discrete = [False, False, False, False, True, False]
 
     def __len__(self):
         return len(self._dataset_targets)

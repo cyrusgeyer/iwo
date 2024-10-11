@@ -28,7 +28,8 @@ class LitIWO(L.LightningModule):
             self.mean_scores[mode] = []
             self.scores[mode] = [[] for _ in range(self.num_factors)]
 
-        self.Qs = [[] for _ in range(self.num_factors)]
+        self.Bs = [[] for _ in range(self.num_factors)]
+        self.Ws = [[] for _ in range(self.num_factors)]
         self.baselines = []
 
         # Make Losses:

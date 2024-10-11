@@ -13,7 +13,6 @@ class IWOCallback(L.Callback):
         self.mean_scores_all_epochs = []
         self.baselines = baselines
         self.cfg = cfg
-        self.keep_small_scores = not (cfg.representation.name == "synthetic")
         self.indenpendent_models = cfg["model"]["mode"] == "independent"
         if self.indenpendent_models:
             self.early_stoppings = [
@@ -28,23 +27,22 @@ class IWOCallback(L.Callback):
             ]
 
     def iwo(self, trainer, pl_module, all_scores, mode):
-        Q_per_factor = []
+        B_per_factor = []
         w_list = pl_module.model.get_w()
 
         for k, scores in enumerate(all_scores):
-            Q = get_basis(w_list[k])
-            Q_per_factor.append(Q)
+            B = get_basis(w_list[k])
+            B_per_factor.append(B)
 
             # Log values in Module
             if mode == "train":
-                pl_module.Qs[k].append(Q)
+                pl_module.Bs[k].append(B)
+                pl_module.Ws[k].append(w_list[k])
+
             pl_module.scores[mode][k].append(scores)
 
         iwo_list, iwr_list, mw_iwo, mw_iwr, importance = calculate_iwo(
-            Q_per_factor,
-            all_scores,
-            self.baselines,
-            self.keep_small_scores,
+            B_per_factor, all_scores, self.baselines
         )
         for k in range(self.num_factors):
             pl_module.log(f"Factor_{k}/{mode}/iwo", iwo_list[k])
@@ -83,13 +81,13 @@ class IWOCallback(L.Callback):
     def on_validation_batch_end(
         self, trainer, pl_module, outputs, batch, batch_idx: int
     ) -> None:
-        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
+        super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx)
         self.on_batch_end(outputs, mode="val")
 
     def on_test_batch_end(
         self, trainer, pl_module, outputs, batch, batch_idx: int
     ) -> None:
-        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
+        super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx)
         self.on_batch_end(outputs, mode="test")
 
     def on_batch_end(self, outputs, mode):
@@ -111,7 +109,10 @@ class IWOCallback(L.Callback):
         all_scores = []
         _k = 0
         for k in range(self.num_factors):
-            if not pl_module.model.per_factor_training[k]:
+            if (
+                pl_module.model.per_factor_training != "all"
+                and pl_module.model.per_factor_training != k
+            ):
                 all_scores.append(self.frozen_scores[k].to(pl_module.device))
             else:
                 scores = _all_scores[_k]
@@ -154,5 +155,5 @@ class EarlyStopping:
         if all_not_improved and all(
             [e >= self.patience for e in self.epochs_without_improvement]
         ):
-            return True
+            return False  # Never stop early for now. –> TODO: Modify this to actually implement early stopping.
         return False

@@ -29,6 +29,7 @@ This repository hosts the code and resources for the research paper "Measuring O
 3. Install the requirements:
    ```
    pip install lightning numpy hydra-core 'wandb>=0.12.10' 
+   pip install hydra-submitit-launcher --upgrade
    ```
 
 ### Usage
