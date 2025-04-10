@@ -1,13 +1,14 @@
 mode: independent
-per_factor_training: [True, True, True, True, True]
+per_factor_training: all # [True, True, True, True, True]
 default:
-  first_dim: 10
+  # MUST match the size of L
+  first_dim: 10                                 # Equal to value of L in representation/synthetic
   num_hidden_layers: 4
   hidden_dim: 25
   batch_norm: False
-  init_w: kaiming_uniform_custom #,xavier_normal, xavier_uniform, kaiming_normal, eye
-  init_layers: kaiming_uniform_custom #,xavier_normal, xavier_uniform, kaiming_normal, eye
-  nonlinearity: leaky_relu # relu, leaky_relu
+  init_w: kaiming_uniform_custom                # Options: kaiming_uniform_custom, xavier_normal, xavier_uniform, kaiming_normal, eye
+  init_layers: kaiming_uniform_custom           # Options: kaiming_uniform_custom, xavier_normal, xavier_uniform, kaiming_normal, eye
+  nonlinearity: leaky_relu                      # Options: relu, leaky_relu
   nonlinearity_param: 0.01
   first_layer_batch_norm: False
   first_layer_nonlinearity: False 
