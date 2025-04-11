@@ -46,6 +46,7 @@ def train_iwo_pipeline(cfg, train_dataset, val_dataset, test_dataset):
         config=cfg_dict,
         offline=cfg.training.wandb_offline,
     )
+
     trainer = L.Trainer(
         logger=wandb_logger,
         max_epochs=cfg.training.num_epochs,
