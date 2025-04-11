@@ -88,7 +88,7 @@ def generate_data(
             gen_list.append((np.mean(np.cos(c_span), -1)))
         else:
             raise ValueError(
-                f"Invalid function type: {func}. Expected 'linear', 'quadratic', or 'cubic'."
+                f"Invalid function type: {func}. Expected 'linear', 'quadratic', or 'trig'."
             )
 
     gen_factors = np.vstack(gen_list).transpose()

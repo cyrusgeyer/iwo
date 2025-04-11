@@ -7,12 +7,12 @@ def log_to_base(tensor: torch.Tensor, base: float) -> torch.Tensor:
     Compute the logarithm of all elements in the input tensor to the specified base.
 
     Parameters:
-    tensor (torch.Tensor): The input tensor.
-    base (float): The logarithmic base to use.
+        tensor (torch.Tensor): The input tensor.
+        base (float): The logarithmic base to use.
 
     Returns:
-    torch.Tensor: A tensor where each element is the logarithm to the
-    specified base of the corresponding element in the input tensor.
+        torch.Tensor: A tensor where each element is the logarithm to the
+            specified base of the corresponding element in the input tensor.
     """
     # Convert the base to a tensor and ensure it is the same dtype as the input tensor
     base_tensor = torch.tensor([base], dtype=tensor.dtype, device=tensor.device)
@@ -30,10 +30,10 @@ def complete_orthonormal_basis(Q: torch.Tensor) -> torch.Tensor:
     Complete the orthonormal basis given k-1 orthonormal vectors of k dimensions.
 
     Parameters:
-    Q (torch.Tensor): A tensor of shape (k-1, k) containing k-1 orthonormal vectors.
+        Q (torch.Tensor): A tensor of shape (k-1, k) containing k-1 orthonormal vectors.
 
     Returns:
-    Tensor: The k-th vector to complete the orthonormal basis.
+        Tensor: The k-th vector to complete the orthonormal basis.
     """
     # get the dimension of the vectors
     k = Q.size(1)
@@ -57,6 +57,13 @@ def complete_orthonormal_basis(Q: torch.Tensor) -> torch.Tensor:
 def complete_orthonormal_basis_helper(Q: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     """
     Helper function to orthogonalize w with respect to the vectors in Q.
+    
+    Parameters:
+        Q (torch.Tensor): _description_ A tensor of shape (k-1, k) containing k-1 orthonormal vectors. ?
+        w (torch.Tensor): _description_
+
+    Returns:
+        torch.Tensor: orthogonalized w
     """
     for i in range(Q.size(0)):
         qi = Q[i]
@@ -69,7 +76,7 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
     """generate basis matrix B of dimensions L x L where L is the latent space dimension.
     B is orthonormal, the columns are the basis vectors ordered from most important to least important.
 
-    Args:
+    Parameters:
         W_list (list): learned matrices W_L
         new_dtype (_type_, optional): . Defaults to torch.float64.
 
@@ -106,12 +113,13 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
 def get_iwo(importance_list: list, B_lists: list, per_factor_performance: list) -> list:
     """Calculate IWO.
 
-    Args:
+    Parameters:
         importance_list (list): list of floats holding the relative importance of the basis vectors in B
-        Bs (list): _description_
+        Bs (list): Basis vectors of Basis B
 
     Returns:
-        list: _description_
+        iwo_list (list): _description_
+        mean_iwo (float): _description_
     """
 
     num_factors = len(B_lists)
@@ -206,13 +214,15 @@ def get_importance(
 ) -> list:
     """Computes the importance as deduced from the loss differences between the NN-heads.
 
-    Args:
+    Parameters:
         baseline (float): The score which corresponds to random guessing for this task.
         scores (list): The scores that were allocated to the the basis vectors (loss differences between NN-heads)
         num_dim (int, optional): The number of dimensions in the latent space. If not specified, it's assumed to be the length of the list scores.
 
     Returns:
-        list: importance as deduced from the loss differences between the NN-heads
+        importance (list): importance as deduced from the loss differences between the NN-heads
+        iwr (float): IWR of the subspace / basis
+        min_score / baseline (float): min_score / baseline
     """
 
     if num_dim is None:
@@ -300,7 +310,10 @@ def calculate_iwo(
     returns:
     iwo_list (list): A list of IWO scores.
     iwr_list (list): A list of IWR scores.
+    mean_iwo (float): Mean IWO score over all generative factors.
+    mean_iwr (float): Mean IWR score over all generative factors.
     importance (list): A list of importance scores.
+    var (float): 
     """
 
     iwr_list = []

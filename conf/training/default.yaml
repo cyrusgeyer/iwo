@@ -8,3 +8,4 @@ optimizer: Adam
 accelerator: gpu
 es_patience: 4
 log_iwo: True
+wandb_offline: True

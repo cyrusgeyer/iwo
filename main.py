@@ -11,7 +11,7 @@ import json
 OmegaConf.register_new_resolver("merge", lambda *args: ",".join(map(str, args)))
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="default_synthetic")
+@hydra.main(version_base=None, config_path="conf", config_name="synthetic")
 def main(cfg: DictConfig) -> None:
     OmegaConf.resolve(cfg)
     if cfg.representation.name == "synthetic":

@@ -41,15 +41,15 @@ class IWOCallback(L.Callback):
 
             pl_module.scores[mode][k].append(scores)
 
-        iwo_list, iwr_list, mw_iwo, mw_iwr, importance = calculate_iwo(
+        iwo_list, iwr_list, mw_iwo, mw_iwr, importance, _ = calculate_iwo(
             B_per_factor, all_scores, self.baselines
         )
         for k in range(self.num_factors):
             pl_module.log(f"Factor_{k}/{mode}/iwo", iwo_list[k])
             pl_module.log(f"Factor_{k}/{mode}/iwr", iwr_list[k])
 
-        pl_module.log(f"Mean_iwo/{mode}", mw_iwo.item())
-        pl_module.log(f"Mean_iwr/{mode}", mw_iwr.item())
+        pl_module.log(f"Mean_iwo/{mode}", mw_iwo)
+        pl_module.log(f"Mean_iwr/{mode}", mw_iwr)
         if mode == "test":
             pl_module.iwo_test_out["iwo_list"] = iwo_list
             pl_module.iwo_test_out["iwr_list"] = iwr_list
