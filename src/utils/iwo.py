@@ -76,37 +76,34 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
     Returns:
         torch.Tensor: basis matrix B
     """
+    new_dtype = torch.float64
+
     old_dtype = W_list[0].dtype
     device = W_list[0].device
 
     if old_dtype != new_dtype:
         W_list = [m.to(new_dtype) for m in W_list]
 
-    if W_list[0].shape[0] != W_list[0].shape[1]:
-        W_prod = torch.eye(W_list[0].shape[1], device=device, dtype=new_dtype)
-    else:
-        W_prod = W_list[0]
-        W_list.pop(0)
+    b_list = []
+    W_prod = torch.eye(W_list[0].shape[1], device=device, dtype=new_dtype)
 
     for i, W in enumerate(W_list):
         W_prod = W @ W_prod
-        if i == 0:
-            Qr, _ = torch.linalg.qr(W_prod.t(), mode="complete")
-            b_list = [Qr[:, -1:]]
-        else:
-            T = torch.concat([W_prod.t()] + b_list, axis=1)
-            Qr, _ = torch.linalg.qr(T, mode="complete")
-            b_list.append(Qr[:, -1:])
+        reduction = W.shape[1] - W.shape[0]
+        T = torch.concat([W_prod.t()] + b_list, axis=1)
+        Qr, _ = torch.linalg.qr(T, mode="complete")
+        b_list.append(torch.flip(Qr[:, -reduction:], dims=[1]))
+
     T = torch.concat(b_list, axis=1)
+    reduction = T.shape[0] - T.shape[1]
     Qr, _ = torch.linalg.qr(T, mode="complete")
-    b_list.append(Qr[:, -1:])
-    B_flipped = torch.concat(b_list, axis=1)
-    B = torch.flip(B_flipped, dims=[1])
-    B = B.to(old_dtype)
-    return B
+    b_list.append(torch.flip(Qr[:, -reduction:], dims=[1]))
+    b_list.reverse()
+    b_list = [b.to(old_dtype) for b in b_list]
+    return b_list
 
 
-def get_iwo(importance_list: list, Bs: list, per_factor_performance: list) -> list:
+def get_iwo(importance_list: list, B_lists: list, per_factor_performance: list) -> list:
     """Calculate IWO.
 
     Args:
@@ -117,11 +114,22 @@ def get_iwo(importance_list: list, Bs: list, per_factor_performance: list) -> li
         list: _description_
     """
 
-    num_factors = len(Bs)
+    num_factors = len(B_lists)
     iwo_list = []
     weights = []
 
     use_weights = per_factor_performance is not None
+
+    Bs = []
+    new_importance_list = []
+    for factor_importances, factor_basis in zip(importance_list, B_lists):
+        new_importance_list.append([])
+        for importance, basis_set in zip(factor_importances, factor_basis):
+            num_basis_vectors = len(basis_set)
+            shared_importance = importance / num_basis_vectors
+            new_importance_list[-1] += [shared_importance] * num_basis_vectors
+
+        Bs.append(torch.concat(factor_basis, axis=1))
 
     for i in range(num_factors):
         for j in range(i + 1, len(Bs)):
