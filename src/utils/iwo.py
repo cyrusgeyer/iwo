@@ -57,7 +57,7 @@ def complete_orthonormal_basis(Q: torch.Tensor) -> torch.Tensor:
 def complete_orthonormal_basis_helper(Q: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     """
     Helper function to orthogonalize w with respect to the vectors in Q.
-    
+
     Parameters:
         Q (torch.Tensor): _description_ A tensor of shape (k-1, k) containing k-1 orthonormal vectors. ?
         w (torch.Tensor): _description_
@@ -97,6 +97,8 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
     for i, W in enumerate(W_list):
         W_prod = W @ W_prod
         reduction = W.shape[1] - W.shape[0]
+        if reduction == 0:
+            continue
         T = torch.concat([W_prod.t()] + b_list, axis=1)
         Qr, _ = torch.linalg.qr(T, mode="complete")
         b_list.append(torch.flip(Qr[:, -reduction:], dims=[1]))
@@ -131,11 +133,12 @@ def get_iwo(importance_list: list, B_lists: list, per_factor_performance: list) 
     Bs = []
     new_importance_list = []
     for factor_importances, factor_basis in zip(importance_list, B_lists):
-        new_importance_list.append([])
+        _temp_list = []
         for importance, basis_set in zip(factor_importances, factor_basis):
-            num_basis_vectors = len(basis_set)
+            num_basis_vectors = basis_set.shape[-1]
             shared_importance = importance / num_basis_vectors
-            new_importance_list[-1] += [shared_importance] * num_basis_vectors
+            _temp_list += [shared_importance] * num_basis_vectors
+        new_importance_list.append(torch.Tensor(_temp_list))
 
         Bs.append(torch.concat(factor_basis, axis=1))
 
@@ -144,9 +147,9 @@ def get_iwo(importance_list: list, B_lists: list, per_factor_performance: list) 
             iwo = (
                 1
                 - (
-                    importance_list[j].unsqueeze(1) ** (1 / 2)
+                    new_importance_list[j].unsqueeze(1) ** (1 / 2)
                     * (torch.matmul(Bs[j].t(), Bs[i]) ** 2)
-                    * importance_list[i].unsqueeze(0) ** (1 / 2)
+                    * new_importance_list[i].unsqueeze(0) ** (1 / 2)
                 ).sum()
             )
             iwo_list.append(iwo)
@@ -210,23 +213,20 @@ def get_iwo_entropy_based(importance_list, Bs, per_factor_performance):
 
 
 def get_importance(
-    baseline: float, scores: list, num_dim=None, importance_mode="fill_up", power=2
+    baseline: float, scores: list, num_dim: int, importance_mode="fill_up", power=2
 ) -> list:
     """Computes the importance as deduced from the loss differences between the NN-heads.
 
     Parameters:
         baseline (float): The score which corresponds to random guessing for this task.
         scores (list): The scores that were allocated to the the basis vectors (loss differences between NN-heads)
-        num_dim (int, optional): The number of dimensions in the latent space. If not specified, it's assumed to be the length of the list scores.
+        num_dim (int): The number of dimensions in the latent space.
 
     Returns:
         importance (list): importance as deduced from the loss differences between the NN-heads
         iwr (float): IWR of the subspace / basis
         min_score / baseline (float): min_score / baseline
     """
-
-    if num_dim is None:
-        num_dim = len(scores) + 1
 
     device = scores.device
 
@@ -313,7 +313,7 @@ def calculate_iwo(
     mean_iwo (float): Mean IWO score over all generative factors.
     mean_iwr (float): Mean IWR score over all generative factors.
     importance (list): A list of importance scores.
-    var (float): 
+    var (float):
     """
 
     iwr_list = []

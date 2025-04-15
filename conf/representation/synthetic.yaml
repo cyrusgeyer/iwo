@@ -2,20 +2,20 @@ name: synthetic
 N: 10000
 # Number of generative factors
 K: 5
-# Dimension of the latent space; Has to match the size of the first dimension in the model
+# Dimension of the latent space
 L: 10
 noise_sigma: 0.001
 data_sigma: 1.0
 # rank : Rank of the generated data
 #         Only really have an effect on quadratic and trig
-rank : 2
-orth_proj : True
+rank: 5
+orth_proj: True
 # funtion inducing the generative factor
-function : "quadratic"    # Options: "noisy", "permuted", "linear", "quadratic" or "trig"
-                          # For options "noisy" and "permuted" L == K has to hold
+function:
+  "quadratic" # Options: "noisy", "permuted", "linear", "quadratic" or "trig"
+  # For options "noisy" and "permuted" L == K has to hold
 shuffle: False
 num_workers: 0
-
 # The following relations must hold:
 #   L % K == 0
 #   L >= K
