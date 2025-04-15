@@ -19,11 +19,11 @@ training:
   accelerator: cpu
 
 representation:
-  L: 10
-  function: "trig"
+  L: 100
+  function: "quadratic"
 
 model:
   default:
-    w_sizes: 5,4,3,2,1 # rows of ws # 70,50,20,
-    num_hidden_layers: 5,5,4,3,3,3 # first NN-head acts on the representation directly. Should ideally have same or similar capacity as the second NN head acting on the first projection. # 5,5,5,
-    hidden_dim: 25,25,20,20,20,20 # 25,25,25,
+    w_sizes: 70,50,20,5,4,3,2,1 # rows of ws
+    num_hidden_layers: 5,5,5,5,5,4,3,3,3 # first NN-head acts on the representation directly. Should ideally have same or similar capacity as the second NN head acting on the first projection.
+    hidden_dim: 25,25,25,25,25,20,20,20,20

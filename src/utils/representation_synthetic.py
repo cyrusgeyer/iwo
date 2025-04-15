@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 import math
 
-# Function which genrate the factors first and then the latents from them:
+# Function which generate the factors first and then the latents from them:
 
 
 def generate_generative_factors(n=1000, d=5, factor_sizes=None):
@@ -37,7 +37,7 @@ def generate_orthogonal_data(n, d, factor_sizes=None):
     return [gen_factors, latent_reps]
 
 
-# Functions which genrate the latents first and then the factors from them:
+# Functions which generate the latents first and then the factors from them:
 
 
 def generate_latent_variables(n, l, sigma):
