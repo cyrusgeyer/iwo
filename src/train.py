@@ -67,7 +67,7 @@ def train_iwo_pipeline(cfg, train_dataset, val_dataset, test_dataset):
             "scores_val": [score.cpu() for score in litiwo.scores["val"][k]],
             "scores": [score.cpu() for score in litiwo.scores["test"][k]],
             "Ws": [[W.cpu() for W in Ws] for Ws in litiwo.Ws[k]],
-            "Bs": [B.cpu() for B in litiwo.Bs[k]],
+            "Bs": [[b.cpu() for b in B] for B in litiwo.Bs[k]],
             "baseline": litiwo.baselines[k],
         }
         for k in range(len(factor_sizes))

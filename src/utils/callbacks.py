@@ -4,7 +4,8 @@ from .iwo import get_basis, calculate_iwo
 
 
 class IWOCallback(L.Callback):
-    def __init__(self, num_factors, baselines, cfg):
+
+    def __init__(self, num_factors, baselines, cfg, num_layers):
         super().__init__()
         self.num_factors = num_factors
         self.score_buffer = {}
@@ -20,15 +21,14 @@ class IWOCallback(L.Callback):
                 for _ in range(num_factors)
             ]
             self.frozen_scores = [
-                torch.tensor(
-                    [float("inf") for _ in range(cfg["model"]["default"]["first_dim"])]
-                )
+                torch.tensor([float("inf") for _ in range(num_layers)])
                 for _ in range(num_factors)
             ]
 
     def iwo(self, trainer, pl_module, all_scores, mode):
         B_per_factor = []
         w_list = pl_module.model.get_w()
+        num_dim = pl_module.model.input_dim
 
         for k, scores in enumerate(all_scores):
             B = get_basis(w_list[k])
@@ -42,7 +42,7 @@ class IWOCallback(L.Callback):
             pl_module.scores[mode][k].append(scores)
 
         iwo_list, iwr_list, mw_iwo, mw_iwr, importance, _ = calculate_iwo(
-            B_per_factor, all_scores, self.baselines
+            B_per_factor, all_scores, self.baselines, num_dim
         )
         for k in range(self.num_factors):
             pl_module.log(f"Factor_{k}/{mode}/iwo", iwo_list[k])

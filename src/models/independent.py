@@ -13,7 +13,7 @@ class IWOModel(nn.Module):
         factor_discrete,
     ) -> None:
         super().__init__()
-
+        self.input_dim = input_dim
         self.num_factors = len(factor_sizes)
         models = []
         for i in range(self.num_factors):
@@ -58,7 +58,7 @@ class ReductionNet(nn.Module):
         self,
         input_dim,
         out_size,
-        first_dim=None,
+        w_sizes=None,
         num_hidden_layers=2,
         hidden_dim=254,
         batch_norm=True,
@@ -73,34 +73,43 @@ class ReductionNet(nn.Module):
         super().__init__()
         self.out_size = out_size
 
-        # First IWO Layer
-        if input_dim == first_dim:
-            w = torch.eye(input_dim)
-            self.register_buffer("first_w", w)
-            self.first_layer_not_param = True
-            w_list = []
-        else:
-            w = nn.Parameter(torch.eye(first_dim, input_dim))
-            apply_init_w(w, init_w, nonlinearity, nonlinearity_param)
-            w_list = [nn.Parameter(w)]
-            self.first_layer_not_param = False
+        if isinstance(w_sizes, int):
+            assert w_sizes < input_dim
+            w_sizes = [
+                i for i in reversed(range(1, w_sizes + 1))
+            ]  # Reducing one dimension at a time.
+        if isinstance(w_sizes, str):
+            w_sizes = w_sizes.split(",")
+            w_sizes = [int(size) for size in w_sizes]
+            assert w_sizes[0] < input_dim
+            if any(w_sizes[i] < w_sizes[i + 1] for i in range(len(w_sizes) - 1)):
+                raise ValueError("w_sizes is not sorted from biggest to lowest")
+        num_lin_layers = len(w_sizes)
 
         if isinstance(num_hidden_layers, int):
-            num_hidden_layers = [num_hidden_layers] * first_dim
-        if isinstance(hidden_dim, int):
-            hidden_dim = [hidden_dim] * first_dim
-        if isinstance(batch_norm, bool):
-            batch_norm = [batch_norm] * first_dim
+            num_hidden_layers = [num_hidden_layers] * (num_lin_layers + 1)
         if isinstance(num_hidden_layers, str):
             num_hidden_layers = num_hidden_layers.split(",")
             num_hidden_layers = [int(value) for value in num_hidden_layers]
+            assert len(num_hidden_layers) == num_lin_layers + 1
+
+        if isinstance(hidden_dim, int):
+            hidden_dim = [hidden_dim] * (num_lin_layers + 1)
         if isinstance(hidden_dim, str):
             hidden_dim = hidden_dim.split(",")
             hidden_dim = [int(value) for value in hidden_dim]
+            assert len(hidden_dim) == num_lin_layers + 1
+
+        if isinstance(batch_norm, bool):
+            batch_norm = [batch_norm] * (num_lin_layers + 1)
+        if isinstance(batch_norm, str):
+            batch_norm = batch_norm.split(",")
+            batch_norm = [bool(int(value)) for value in batch_norm]
+            assert len(batch_norm) == num_lin_layers + 1
 
         nets = [
             SimpleRegressionNet(
-                first_dim,
+                input_dim,
                 out_size,
                 num_hidden_layers[0],
                 hidden_dim[0],
@@ -113,14 +122,22 @@ class ReductionNet(nn.Module):
             )
         ]
 
+        # Note that the first net acts directly on the hidden representation.
+        # It therefore requires no w. That's why w_list[i] and
+        # num_hidden_layers[i + 1] correspond to the same layer in the LNN.
+
+        w_list = []
+
         # Subsequent IWO Layers
-        for i in range(first_dim - 1):
-            w = nn.Parameter(torch.eye(first_dim - i - 1, first_dim - i))
+        column_dim = input_dim
+        for i in range(num_lin_layers):
+            row_dim = w_sizes[i]
+            w = nn.Parameter(torch.eye(row_dim, column_dim))
             apply_init_w(w, init_w, nonlinearity, nonlinearity_param)
             w_list.append(w)
             nets.append(
                 SimpleRegressionNet(
-                    first_dim - i - 1,
+                    row_dim,
                     out_size,
                     num_hidden_layers[i + 1],
                     hidden_dim[i + 1],
@@ -132,6 +149,7 @@ class ReductionNet(nn.Module):
                     first_layer_nonlinearity,
                 )
             )
+            column_dim = row_dim
 
         # Store the layers in a ParameterList and ModuleList so that they are registered as parameters and modules
         self.w_list_params = nn.ParameterList(w_list)
@@ -139,22 +157,14 @@ class ReductionNet(nn.Module):
 
     def forward(self, x):
         outs = []
-        if self.first_layer_not_param:
-            x = torch.einsum("ij,bj->bi", self.first_w, x)
-            outs.append(self.nets[0](x))
-            for i, w in enumerate(self.w_list_params):
-                x = torch.einsum("nj,bj->bn", w, x)
-                outs.append(self.nets[i + 1](x))
-            return outs
+        outs.append(self.nets[0](x))
         for i, w in enumerate(self.w_list_params):
             x = torch.einsum("nj,bj->bn", w, x)
-            outs.append(self.nets[i](x))
+            outs.append(self.nets[i + 1](x))
         return outs
 
     def get_w(self):
         w_list = []
-        if self.first_layer_not_param:
-            w_list.append(self.first_w.detach().clone())
         for w in self.w_list_params:
             w_list.append(w.detach().clone())
         return w_list

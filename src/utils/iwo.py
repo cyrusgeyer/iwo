@@ -57,7 +57,7 @@ def complete_orthonormal_basis(Q: torch.Tensor) -> torch.Tensor:
 def complete_orthonormal_basis_helper(Q: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     """
     Helper function to orthogonalize w with respect to the vectors in Q.
-    
+
     Parameters:
         Q (torch.Tensor): _description_ A tensor of shape (k-1, k) containing k-1 orthonormal vectors. ?
         w (torch.Tensor): _description_
@@ -83,37 +83,36 @@ def get_basis(W_list: list, new_dtype=torch.float64) -> torch.Tensor:
     Returns:
         torch.Tensor: basis matrix B
     """
+    new_dtype = torch.float64
+
     old_dtype = W_list[0].dtype
     device = W_list[0].device
 
     if old_dtype != new_dtype:
         W_list = [m.to(new_dtype) for m in W_list]
 
-    if W_list[0].shape[0] != W_list[0].shape[1]:
-        W_prod = torch.eye(W_list[0].shape[1], device=device, dtype=new_dtype)
-    else:
-        W_prod = W_list[0]
-        W_list.pop(0)
+    b_list = []
+    W_prod = torch.eye(W_list[0].shape[1], device=device, dtype=new_dtype)
 
     for i, W in enumerate(W_list):
         W_prod = W @ W_prod
-        if i == 0:
-            Qr, _ = torch.linalg.qr(W_prod.t(), mode="complete")
-            b_list = [Qr[:, -1:]]
-        else:
-            T = torch.concat([W_prod.t()] + b_list, axis=1)
-            Qr, _ = torch.linalg.qr(T, mode="complete")
-            b_list.append(Qr[:, -1:])
+        reduction = W.shape[1] - W.shape[0]
+        if reduction == 0:
+            continue
+        T = torch.concat([W_prod.t()] + b_list, axis=1)
+        Qr, _ = torch.linalg.qr(T, mode="complete")
+        b_list.append(torch.flip(Qr[:, -reduction:], dims=[1]))
+
     T = torch.concat(b_list, axis=1)
+    reduction = T.shape[0] - T.shape[1]
     Qr, _ = torch.linalg.qr(T, mode="complete")
-    b_list.append(Qr[:, -1:])
-    B_flipped = torch.concat(b_list, axis=1)
-    B = torch.flip(B_flipped, dims=[1])
-    B = B.to(old_dtype)
-    return B
+    b_list.append(torch.flip(Qr[:, -reduction:], dims=[1]))
+    b_list.reverse()
+    b_list = [b.to(old_dtype) for b in b_list]
+    return b_list
 
 
-def get_iwo(importance_list: list, Bs: list, per_factor_performance: list) -> list:
+def get_iwo(importance_list: list, B_lists: list, per_factor_performance: list) -> list:
     """Calculate IWO.
 
     Parameters:
@@ -125,20 +124,32 @@ def get_iwo(importance_list: list, Bs: list, per_factor_performance: list) -> li
         mean_iwo (float): _description_
     """
 
-    num_factors = len(Bs)
+    num_factors = len(B_lists)
     iwo_list = []
     weights = []
 
     use_weights = per_factor_performance is not None
+
+    Bs = []
+    new_importance_list = []
+    for factor_importances, factor_basis in zip(importance_list, B_lists):
+        _temp_list = []
+        for importance, basis_set in zip(factor_importances, factor_basis):
+            num_basis_vectors = basis_set.shape[-1]
+            shared_importance = importance / num_basis_vectors
+            _temp_list += [shared_importance] * num_basis_vectors
+        new_importance_list.append(torch.Tensor(_temp_list))
+
+        Bs.append(torch.concat(factor_basis, axis=1))
 
     for i in range(num_factors):
         for j in range(i + 1, len(Bs)):
             iwo = (
                 1
                 - (
-                    importance_list[j].unsqueeze(1) ** (1 / 2)
+                    new_importance_list[j].unsqueeze(1) ** (1 / 2)
                     * (torch.matmul(Bs[j].t(), Bs[i]) ** 2)
-                    * importance_list[i].unsqueeze(0) ** (1 / 2)
+                    * new_importance_list[i].unsqueeze(0) ** (1 / 2)
                 ).sum()
             )
             iwo_list.append(iwo)
@@ -202,23 +213,20 @@ def get_iwo_entropy_based(importance_list, Bs, per_factor_performance):
 
 
 def get_importance(
-    baseline: float, scores: list, num_dim=None, importance_mode="fill_up", power=2
+    baseline: float, scores: list, num_dim: int, importance_mode="fill_up", power=2
 ) -> list:
     """Computes the importance as deduced from the loss differences between the NN-heads.
 
     Parameters:
         baseline (float): The score which corresponds to random guessing for this task.
         scores (list): The scores that were allocated to the the basis vectors (loss differences between NN-heads)
-        num_dim (int, optional): The number of dimensions in the latent space. If not specified, it's assumed to be the length of the list scores.
+        num_dim (int): The number of dimensions in the latent space.
 
     Returns:
         importance (list): importance as deduced from the loss differences between the NN-heads
         iwr (float): IWR of the subspace / basis
         min_score / baseline (float): min_score / baseline
     """
-
-    if num_dim is None:
-        num_dim = len(scores) + 1
 
     device = scores.device
 
@@ -305,7 +313,7 @@ def calculate_iwo(
     mean_iwo (float): Mean IWO score over all generative factors.
     mean_iwr (float): Mean IWR score over all generative factors.
     importance (list): A list of importance scores.
-    var (float): 
+    var (float):
     """
 
     iwr_list = []

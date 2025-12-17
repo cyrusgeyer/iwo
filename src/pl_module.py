@@ -6,6 +6,7 @@ from .utils.utils import (
     ContLoss,
 )
 from .utils.callbacks import IWOCallback
+from torch.optim.lr_scheduler import StepLR
 
 
 class LitIWO(L.LightningModule):
@@ -80,17 +81,33 @@ class LitIWO(L.LightningModule):
 
     def configure_optimizers(self):
         if self.cfg.training.optimizer == "Adam":
-            return torch.optim.Adam(self.parameters(), lr=self.cfg.training.lr)
+            optimizer = torch.optim.Adam(self.parameters(), lr=self.cfg.training.lr)
         elif self.cfg.training.optimizer == "AdamW":
-            return torch.optim.AdamW(self.parameters(), lr=self.cfg.training.lr)
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.cfg.training.lr)
         else:
-            raise NotImplementedError(
-                f"Optimizer {self.cfg.training.optimizer} not implemented. but can be added."
-            )
+            raise ValueError(f"Unknown optimizer: {self.cfg.training.optimizer}")
+
+        # Example scheduler: decreases LR by gamma every step_size epochs
+        scheduler = StepLR(
+            optimizer,
+            step_size=self.cfg.training.lr_step_size,
+            gamma=self.cfg.training.lr_gamma,
+        )
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "epoch",  # or "step"
+                "frequency": 1,
+                "monitor": "val_loss",  # optional, used for ReduceLROnPlateau and similar
+            },
+        }
 
     def configure_callbacks(self):
         baselines = [
             self.loss_functions[k].baseline_score for k in range(self.num_factors)
         ]
-        iwo = IWOCallback(self.num_factors, baselines, self.cfg)
+        num_layers = len(self.model.model[0].nets)
+        iwo = IWOCallback(self.num_factors, baselines, self.cfg, num_layers)
         return [iwo]
